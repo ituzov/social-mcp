@@ -1,6 +1,6 @@
 [project]
 name = "social-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local MCP server for Threads accounts, posts, insights, and publishing"
 readme = "README.md"
 license = "MIT"
@@ -12,6 +12,7 @@ dependencies = [
     "httpx>=0.28.1",
     "jinja2>=3.1.6",
     "mcp>=2.3.0",
+    "packaging>=26.3",
     "platformdirs>=4.14.3",
     "pydantic>=2.14.2",
     "pydantic-settings>=2.16.2",
@@ -84,6 +85,7 @@ layers = [
     "social_mcp.app | social_mcp.migrations",
     "social_mcp.threads | social_mcp.migration_models",
     "social_mcp.mcp_server | social_mcp.accounts",
+    "social_mcp.updates",
     "social_mcp.database : social_mcp.config",
 ]
 
@@ -106,6 +108,7 @@ testpaths = ["tests"]
 name = "MCP stays in handlers and the application boundary"
 type = "forbidden"
 source_modules = [
+    "social_mcp.updates",
     "social_mcp.accounts",
     "social_mcp.database",
     "social_mcp.threads.connection",

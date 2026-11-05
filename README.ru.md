@@ -12,6 +12,9 @@
 
 - Записи аккаунтов и токены хранятся в SQLite на компьютере, где запущен Social
   MCP. У проекта нет облачного сервера, синхронизации БД или встроенной телеметрии.
+- По умолчанию сервер также проверяет публичный API релизов GitHub. Данные
+  аккаунтов и токены GitHub не передаются. Отключить запрос можно через
+  `SOCIAL_MCP_CHECK_UPDATES=false`.
 - Сервер обращается напрямую к Threads API. Токены передаются Meta для авторизации
   запросов; Social MCP не включает их в ответы инструментов и не отправляет
   ИИ-модели.
@@ -34,14 +37,14 @@
 
 Репозиторий: [ituzov/social-mcp](https://github.com/ituzov/social-mcp).
 
-Команды ниже устанавливают релиз `v0.1.0`. Во всех командах используй один тег
+Команды ниже устанавливают релиз `v0.1.1`. Во всех командах используй один тег
 релиза. Выпущенные теги не перемещаем: исправления публикуем под новым тегом,
-например `v0.1.1`.
+например `v0.1.2`.
 
 Команда запуска сервера:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
 ```
 
 Первый запуск скачивает и подготавливает зависимости, поэтому ему нужно дать
@@ -55,13 +58,13 @@ uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0"
 **Claude Code** ([документация MCP](https://code.claude.com/docs/en/mcp)):
 
 ```bash
-claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp
+claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
 ```
 
 **Codex** ([документация MCP](https://learn.chatgpt.com/docs/extend/mcp)):
 
 ```bash
-codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp
+codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
 ```
 
 Для клиентов с JSON-настройками `mcpServers`:
@@ -71,7 +74,7 @@ codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/i
   "mcpServers": {
     "social-mcp": {
       "command": "uvx",
-      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.0", "social-mcp"]
+      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.1", "social-mcp"]
     }
   }
 }
@@ -90,7 +93,7 @@ codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/i
 Ещё можно ввести токен скрыто в обычном терминале:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp connect threads
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp connect threads
 ```
 
 Для стандартного запуска `.env` не нужен. Не вставляй токен в чат или настройки MCP.
@@ -101,8 +104,23 @@ uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0"
 
 ## Обновление и удаление
 
-Для обновления выбери другой опубликованный релиз, замени закреплённый тег
-в настройках клиента и переподключи MCP. Перед обновлением сохрани копию БД.
+Попроси ассистента проверить обновления через `social_mcp_check_update`, затем
+поручи обновление, если нужна новая версия. Сам сервер ничего не устанавливает
+и настройки клиента автоматически не меняет.
+
+При вызовах инструментов Social MCP проверяет GitHub не чаще раза в шесть часов
+на процесс и добавляет одно уведомление о новом релизе к успешному ответу.
+Фонового опроса нет: в работающей сессии следующая проверка произойдёт при вызове
+инструмента после истечения кеша. Отдельный инструмент по умолчанию проверяет
+сразу; `force=false` использует кеш. Сбой сети возвращает `unavailable`, а не
+подтверждение актуальности версии, и не мешает другим инструментам.
+`SOCIAL_MCP_CHECK_UPDATES=false` в окружении сервера отключает обе проверки.
+
+Для ручного обновления выбери опубликованный релиз, замени закреплённый тег
+в настройках клиента и переподключи MCP. Сохрани путь к БД и аккаунты; сначала
+сделай согласованную резервную копию SQLite. Версия настраивается отдельно
+в каждом MCP-клиенте, даже если они используют общую БД. С `v0.1.0` нужно впервые
+обновиться вручную: в ней ещё нет проверки обновлений.
 Неизменяемый тег релиза определяет исходники сервера; зависимости `uvx` разрешает
 по `pyproject.toml`.
 При разработке и в CI используется `uv.lock` через `uv sync --locked`.
@@ -153,6 +171,7 @@ codex mcp remove social-mcp
 
 | Область | Инструменты |
 | --- | --- |
+| Сервер | `social_mcp_check_update` |
 | Подключение | `threads_connect`, `threads_list_accounts`, `threads_get_profile` |
 | Публикации | `threads_list_posts` |
 | Статистика | `threads_get_post_insights`, `threads_get_account_insights` |

@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import httpx
@@ -20,6 +21,7 @@ def test_startup_and_tool_discovery(tmp_path):
             env={
                 "SOCIAL_MCP_DB_PATH": str(path),
                 "PYTHONPATH": str(project / "src"),
+                "SOCIAL_MCP_CHECK_UPDATES": "false",
             },
         )
         async with asyncio.timeout(20):
@@ -27,9 +29,18 @@ def test_startup_and_tool_discovery(tmp_path):
                 async with ClientSession(read, write) as session:
                     result = await session.initialize()
                     assert result.server_info.name == "social-mcp"
+                    assert result.server_info.version == version("social-mcp")
+                    update = await session.call_tool("social_mcp_check_update", {})
+                    assert isinstance(update, CallToolResult)
+                    assert update.structured_content is not None
+                    assert update.structured_content["status"] == "disabled"
+                    assert update.structured_content["current_version"] == version(
+                        "social-mcp"
+                    )
                     tools = (await session.list_tools()).tools
                     by_name = {tool.name: tool for tool in tools}
                     assert set(by_name) == {
+                        "social_mcp_check_update",
                         "threads_connect",
                         "threads_get_profile",
                         "threads_list_accounts",

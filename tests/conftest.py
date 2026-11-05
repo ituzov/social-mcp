@@ -14,6 +14,7 @@ from tests.support import PUBLISHING_TOKEN as TOKEN
 @pytest.fixture(autouse=True)
 def isolated_settings(monkeypatch, tmp_path):
     monkeypatch.setenv("SOCIAL_MCP_DB_PATH", str(tmp_path / "settings.sqlite3"))
+    monkeypatch.setenv("SOCIAL_MCP_CHECK_UPDATES", "false")
 
 
 @pytest.fixture

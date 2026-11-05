@@ -3,6 +3,7 @@
 import asyncio
 import os
 import sys
+from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -28,12 +29,21 @@ async def check_package() -> None:
             env={
                 **os.environ,
                 "SOCIAL_MCP_DB_PATH": str(Path(directory) / "accounts.sqlite3"),
+                "SOCIAL_MCP_CHECK_UPDATES": "false",
             },
         )
         async with asyncio.timeout(30):
             async with stdio_client(server) as (read, write):
                 async with ClientSession(read, write) as session:
-                    await session.initialize()
+                    initialized = await session.initialize()
+                    assert initialized.server_info.version == version("social-mcp")
+                    update = await session.call_tool("social_mcp_check_update", {})
+                    assert isinstance(update, CallToolResult)
+                    assert update.structured_content is not None
+                    assert update.structured_content["current_version"] == version(
+                        "social-mcp"
+                    )
+                    assert update.structured_content["status"] == "disabled"
                     tools = await session.list_tools()
                     names = {tool.name for tool in tools.tools}
                     assert {

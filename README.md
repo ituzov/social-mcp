@@ -13,6 +13,9 @@ not implemented.
 
 - Account records and access tokens stay in SQLite on the machine running Social
   MCP. There is no hosted Social MCP backend, cloud sync, or built-in telemetry.
+- By default, the server also checks the public GitHub release endpoint. No
+  account data or tokens are sent to GitHub. Set `SOCIAL_MCP_CHECK_UPDATES=false`
+  to disable this request.
 - The server calls the Threads API directly. Tokens are sent to Meta to authorize
   requests; they are not included in MCP tool responses or sent to the AI model
   by Social MCP.
@@ -34,14 +37,14 @@ See [uv's tool guide](https://docs.astral.sh/uv/guides/tools/).
 
 Repository: [ituzov/social-mcp](https://github.com/ituzov/social-mcp).
 
-The commands below install release `v0.1.0`. Use the same release tag consistently
+The commands below install release `v0.1.1`. Use the same release tag consistently
 in every command. Published tags remain unchanged; fixes use a new tag, such as
-`v0.1.1`.
+`v0.1.2`.
 
 The server's launch command is:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
 ```
 
 The first launch downloads and prepares dependencies; allow it to finish. Later
@@ -55,13 +58,13 @@ connection timing and reconnect behavior depend on the client.
 **Claude Code** ([MCP documentation](https://code.claude.com/docs/en/mcp)):
 
 ```bash
-claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp
+claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
 ```
 
 **Codex** ([MCP documentation](https://learn.chatgpt.com/docs/extend/mcp)):
 
 ```bash
-codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp
+codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
 ```
 
 For clients accepting an `mcpServers` JSON configuration:
@@ -71,7 +74,7 @@ For clients accepting an `mcpServers` JSON configuration:
   "mcpServers": {
     "social-mcp": {
       "command": "uvx",
-      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.0", "social-mcp"]
+      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.1", "social-mcp"]
     }
   }
 }
@@ -90,7 +93,7 @@ Ask the assistant to check the connection after submitting the form.
 An alternative for a real terminal is hidden token input:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.0" social-mcp connect threads
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp connect threads
 ```
 
 No `.env` file is required for the default setup. Keep tokens out of chat and MCP
@@ -102,8 +105,24 @@ For automated setup, see the [installation instructions for agents](docs/install
 
 ## Updating and removing
 
-To update, select another published release, replace the pinned tag in the
-client configuration, and reconnect MCP. Back up the account database first.
+Ask your assistant to check for updates with `social_mcp_check_update`, then
+ask it to update if you want the newer release. The server never installs updates
+or changes client configuration automatically.
+
+During tool calls, Social MCP checks GitHub at most once every six hours per
+process and adds one notice per newer release to a successful tool response.
+There is no background polling: a running session checks again on its next tool
+call after the cache expires. The explicit tool checks immediately by default;
+`force=false` uses the cache. Network failures are reported as `unavailable`,
+never as proof that the installed version is current, and do not block other tools.
+Set `SOCIAL_MCP_CHECK_UPDATES=false` in the client's server environment to disable
+both automatic and explicit checks.
+
+To update manually, select another published release, replace the pinned tag in
+the client configuration, and reconnect MCP. Preserve the database path and saved
+accounts; make a consistent SQLite backup first. Each MCP client has its own
+version setting, even when they share an account database. Version `v0.1.0` needs
+this first update manually because it has no update checker.
 An unchanged release tag identifies the server source; `uvx` resolves package dependencies
 from `pyproject.toml`. Development and CI use `uv.lock` through `uv sync --locked`.
 
@@ -153,6 +172,7 @@ permission shown in the dashboard does not prove a request will succeed.
 
 | Area | Tools |
 | --- | --- |
+| Server | `social_mcp_check_update` |
 | Connection | `threads_connect`, `threads_list_accounts`, `threads_get_profile` |
 | Posts | `threads_list_posts` |
 | Insights | `threads_get_post_insights`, `threads_get_account_insights` |

@@ -452,6 +452,18 @@ def register_threads_tools(
     async def threads_connect(action: ConnectionAction = "start") -> ConnectionStatus:
         """Connect Threads through a local page without sending the token to chat.
 
+        Guide onboarding, not just token entry. If the user's setup is unknown,
+        ask whether they have a token, a Meta app, or neither. With no token,
+        guide one step at a time: developer registration at
+        https://developers.facebook.com/ if needed; create or open a Threads app
+        at https://developers.facebook.com/apps/; add and accept the Threads
+        Tester role; generate a user token with the required permissions.
+        Skip completed steps. The user handles login and verification; never
+        request passwords, verification codes, tokens, or App Secret in chat.
+        Prefer the user's regular browser for Meta login and app setup. If an
+        embedded preview shows a login or unavailable-page error, ask the user
+        to open the same URL in Chrome/Safari; do not assume the app is missing.
+
         start opens a form or returns the current connection URL or result.
         Show the user the url; they enter the token only on that page. Afterwards,
         call start again: connected includes the public profile; pending means waiting.

@@ -5,6 +5,7 @@ import asyncio
 import getpass
 import sys
 import warnings
+from importlib.metadata import version
 
 from social_mcp.config import Settings
 from social_mcp.database import initialize_database
@@ -15,6 +16,7 @@ from social_mcp.threads import (
     ThreadsService,
     register_threads_tools,
 )
+from social_mcp.updates import UpdateChecker
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -32,7 +34,13 @@ def main(argv: list[str] | None = None) -> None:
     initialize_database(settings.db_path)
     service = ThreadsService(settings.db_path)
     connection = ThreadsConnection(service)
-    server = SocialMCPServer("social-mcp", lifespan=connection.lifespan)
+    installed_version = version("social-mcp")
+    server = SocialMCPServer(
+        "social-mcp",
+        version=installed_version,
+        lifespan=connection.lifespan,
+        update_checker=UpdateChecker(installed_version, enabled=settings.check_updates),
+    )
     register_threads_tools(server, service, connection)
     server.run(transport="stdio")
 

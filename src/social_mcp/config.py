@@ -21,6 +21,7 @@ class Settings(BaseSettings):
             user_data_path("social-mcp", appauthor=False) / "social-mcp.sqlite3"
         ),
     )
+    check_updates: bool = True
 
     @field_validator("db_path", mode="before")
     @classmethod
