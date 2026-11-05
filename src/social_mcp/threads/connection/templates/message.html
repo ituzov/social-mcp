@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="{{ language }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ t.connection_title }} · Social MCP</title>
+    <style nonce="{{ nonce }}">{{ styles | safe }}</style>
+</head>
+<body>
+    <div class="shell">
+        <header class="brand">
+            <span class="brand-mark" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"></path>
+                </svg>
+            </span>
+            <span class="brand-wordmark"><strong>social</strong><span>mcp</span></span>
+        </header>
+        <main class="card result {{ state }}">
+            <div class="result-symbol" aria-hidden="true">{{ symbol }}</div>
+            <h1>{{ title }}</h1>
+            <p>{{ message }}</p>
+        </main>
+    </div>
+</body>
+</html>

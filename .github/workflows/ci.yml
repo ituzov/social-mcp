@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOCIAL_MCP_DB_PATH: ${{ runner.temp }}/social-mcp-ci.sqlite3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.13.6"
+          enable-cache: true
+      - name: Install Python and locked dependencies
+        run: |
+          uv python install
+          uv sync --locked
+      - name: Lint, formatting, and architecture
+        run: |
+          uv run --locked ruff check .
+          uv run --locked ruff format --check .
+          uv run --locked lint-imports
+      - name: Tests
+        run: uv run --locked pytest
+      - name: Tests with importlib imports
+        run: uv run --locked pytest --import-mode=importlib
+      - name: Build distributions
+        run: uv build
+      - name: Install wheel in a clean environment
+        run: |
+          uv venv "$RUNNER_TEMP/social-mcp-smoke" --python "$(cat .python-version)"
+          uv pip install --python "$RUNNER_TEMP/social-mcp-smoke/bin/python" dist/*.whl
+      - name: Check installed package and MCP connection
+        run: '"$RUNNER_TEMP/social-mcp-smoke/bin/python" scripts/check_distribution.py'
