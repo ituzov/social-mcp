@@ -121,10 +121,10 @@ def test_unready_or_already_published_container_is_not_published_again(
     publish = AsyncMock()
     monkeypatch.setattr("social_mcp.threads.service.create_text_container", create)
     monkeypatch.setattr(
-        "social_mcp.threads.service.fetch_container_status",
+        "social_mcp.threads.publishing.fetch_container_status",
         AsyncMock(return_value=ContainerStatus(status=status)),
     )
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     with pytest.raises(ThreadsError) as caught:
         asyncio.run(service.publish_text("123", "Hello"))
     assert "No publication was attempted" in str(
@@ -171,8 +171,8 @@ def test_publishing_uses_current_token_returned_by_lifecycle(connected, monkeypa
     status = AsyncMock(return_value=ContainerStatus(status="FINISHED"))
     monkeypatch.setattr(service.tokens, "get_account", get)
     monkeypatch.setattr("social_mcp.threads.service.create_text_container", create)
-    monkeypatch.setattr("social_mcp.threads.service.fetch_container_status", status)
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.fetch_container_status", status)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     result = asyncio.run(service.publish_text("123", TEXT))
     assert result.post_id == "789"
     get.assert_awaited_once_with("123")
@@ -292,11 +292,11 @@ def test_cancelled_publish_is_not_retried(connected, monkeypatch):
         AsyncMock(return_value="456"),
     )
     monkeypatch.setattr(
-        "social_mcp.threads.service.fetch_container_status",
+        "social_mcp.threads.publishing.fetch_container_status",
         AsyncMock(return_value=ContainerStatus(status="FINISHED")),
     )
     publish = AsyncMock(side_effect=asyncio.CancelledError())
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(service.publish_text("123", "Hello"))
     publish.assert_awaited_once()

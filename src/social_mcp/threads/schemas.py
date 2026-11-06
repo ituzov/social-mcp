@@ -173,6 +173,48 @@ class PublishedPost(BaseModel):
     post_id: ThreadsID
 
 
+class PublicationListInput(BaseModel):
+    model_config = ConfigDict(strict=True, hide_input_in_errors=True)
+    account_id: ThreadsID
+    limit: Annotated[int, Field(strict=True, ge=1, le=100)] = 20
+
+
+class PublicationResumeInput(BaseModel):
+    model_config = ConfigDict(strict=True, hide_input_in_errors=True)
+    account_id: ThreadsID
+    publication_id: Annotated[
+        str, Field(pattern=r"^[0-9a-f]{32}$", min_length=32, max_length=32)
+    ]
+
+
+class PublicationSummary(BaseModel):
+    """Public recovery metadata; excludes caption, token and media source URLs."""
+
+    model_config = ConfigDict(strict=True, frozen=True, hide_input_in_errors=True)
+    publication_id: Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
+    account_id: ThreadsID
+    container_id: ThreadsID | None
+    reply_to_id: ThreadsID | None
+    state: Literal["preparing", "publishing", "published", "failed"]
+    post_id: ThreadsID | None
+    created_at: int
+
+
+class PreparedPublication(PublicationSummary):
+    """Private preparation data, never return this schema from an MCP tool."""
+
+    children: list[ThreadsID] = Field(repr=False, exclude=True)
+    caption: str | None = Field(repr=False, exclude=True)
+
+    @model_validator(mode="after")
+    def require_recoverable_containers(self) -> PreparedPublication:
+        if self.container_id is None and not 2 <= len(self.children) <= 20:
+            raise ValueError("A prepared carousel needs 2 to 20 child containers.")
+        if self.state == "published" and self.post_id is None:
+            raise ValueError("A published preparation needs a confirmed post ID.")
+        return self
+
+
 class ThreadsProfile(BaseModel):
     """Allowed profile fields only, excluding internal connection data."""
 

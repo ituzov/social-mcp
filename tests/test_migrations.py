@@ -31,7 +31,7 @@ def test_initial_migration_is_repeatable_and_stdout_is_clean(tmp_path):
         initialize_database(path)
         initialize_database(path)
     assert query(path, "SELECT version_num FROM alembic_version") == [
-        ("0001_accounts",)
+        ("0002_publications",)
     ]
     assert output.getvalue() == ""
 
@@ -63,7 +63,7 @@ def test_next_batch_migration_preserves_data(db_path, tmp_path, monkeypatch):
 from alembic import op
 import sqlalchemy as sa
 revision = "0002_test"
-down_revision = "0001_accounts"
+down_revision = "0002_publications"
 def upgrade():
     with op.batch_alter_table("accounts", recreate="always") as batch:
         batch.add_column(sa.Column("scopes", sa.Text(), server_default="read"))
@@ -86,7 +86,7 @@ def test_failed_migration_rolls_back_schema_and_version(db_path, tmp_path, monke
 from alembic import op
 import sqlalchemy as sa
 revision = "0002_test"
-down_revision = "0001_accounts"
+down_revision = "0002_publications"
 def upgrade():
     op.add_column("accounts", sa.Column("unfinished", sa.Text()))
     raise RuntimeError("synthetic migration failure")
@@ -100,7 +100,7 @@ def downgrade():
         row[1] for row in query(db_path, "PRAGMA table_info(accounts)")
     }
     assert query(db_path, "SELECT version_num FROM alembic_version") == [
-        ("0001_accounts",)
+        ("0002_publications",)
     ]
 
 
@@ -149,7 +149,7 @@ initialize_database(Path(sys.argv[1]))
     assert process.returncode == 0, stderr.decode()
     assert stdout == b""
     assert query(path, "SELECT version_num FROM alembic_version") == [
-        ("0001_accounts",)
+        ("0002_publications",)
     ]
 
 
@@ -175,7 +175,7 @@ def test_parallel_initialization(tmp_path):
                 process.kill()
                 process.communicate()
     assert query(path, "SELECT version_num FROM alembic_version") == [
-        ("0001_accounts",)
+        ("0002_publications",)
     ]
 
 
@@ -189,3 +189,51 @@ def test_alembic_metadata_matches_current_schema(db_path):
         timeout=20,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_publication_migration_on_copy_preserves_original_accounts(tmp_path):
+    from alembic import command
+    from alembic.config import Config
+
+    from social_mcp.accounts import get_account
+    from social_mcp.database import migration_connection
+    from social_mcp.threads.publications import PublicationStore
+
+    original = tmp_path / "previous.sqlite3"
+    upgraded = tmp_path / "upgraded-copy.sqlite3"
+    with migration_connection(original) as connection:
+        config = Config(attributes={"connection": connection})
+        config.set_main_option("script_location", str(database.MIGRATIONS_PATH))
+        command.upgrade(config, "0001_accounts")
+    save_account(
+        original,
+        platform="threads",
+        account_id="123",
+        username="existing",
+        access_token="synthetic-preserved-token",
+        obtained_at=100,
+        expires_at=4000000000,
+    )
+    before = query(original, "SELECT * FROM accounts")
+    with (
+        closing(sqlite3.connect(original)) as source,
+        closing(sqlite3.connect(upgraded)) as target,
+    ):
+        source.backup(target)
+    initialize_database(upgraded)
+    assert query(upgraded, "SELECT * FROM accounts") == before
+    assert query(original, "SELECT version_num FROM alembic_version") == [
+        ("0001_accounts",)
+    ]
+    assert query(upgraded, "SELECT version_num FROM alembic_version") == [
+        ("0002_publications",)
+    ]
+    assert (
+        get_account(
+            upgraded, platform="threads", account_id="123"
+        ).access_token.get_secret_value()
+        == "synthetic-preserved-token"
+    )
+    store = PublicationStore(upgraded)
+    publication_id = store.create("123", container_id="456")
+    assert store.get("123", publication_id).state == "preparing"

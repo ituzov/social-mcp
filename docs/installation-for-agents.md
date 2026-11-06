@@ -28,6 +28,15 @@ contribution rules are in [AGENTS.md](../AGENTS.md).
    transport. If a `social-mcp` entry already exists, compare it first: leave an
    identical entry unchanged and update only the requested fields if needed.
    Do not add a duplicate or overwrite other servers.
+   For Codex, set `tool_timeout_sec = 300` inside the existing
+   `[mcp_servers.social-mcp]` table in `config.toml`, preserving its command,
+   arguments, environment, and unrelated settings. Do not duplicate the table.
+   The current carousel flow exceeds Codex's default 60-second tool deadline
+   even before network overhead. This setting is distinct from startup timeout;
+   see [official configuration options](https://learn.chatgpt.com/docs/extend/mcp#other-configuration-options).
+   For other clients, inspect their supported tool deadline settings rather
+   than assuming they accept Codex's key. A longer deadline is not a publication
+   guarantee: after a timeout, inspect posts before any retry.
 6. **Verify the MCP connection.** Reconnect or reload MCP using the client's
    supported mechanism. Confirm that the client discovers `threads_connect`,
    `threads_list_accounts`, and `threads_get_profile`, then call
@@ -110,3 +119,7 @@ explain the available release, not permission to modify configuration.
 The checker does not exist in `v0.1.0`; its first upgrade requires changing the
 pinned tag directly. A different client's version remains unchanged even when
 both installations share the default database.
+
+When a release introduces a database migration, update all clients sharing that
+database to compatible server versions. An older package rejects newer revisions;
+do not reset or downgrade the shared database to make it start.

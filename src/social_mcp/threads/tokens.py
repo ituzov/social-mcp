@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import time
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from hashlib import sha256
 from pathlib import Path
 
@@ -16,6 +16,7 @@ from social_mcp.accounts import (
     replace_credentials,
     save_account,
 )
+from social_mcp.threads.async_utils import finish_before_cancel as _finish_before_cancel
 from social_mcp.threads.client import inspect_token, refresh_token
 from social_mcp.threads.errors import ThreadsError, ThreadsTransientError
 from social_mcp.threads.schemas import ThreadsProfile, TokenInfo
@@ -24,24 +25,6 @@ DAY = 86400
 REFRESH_WINDOW = 7 * DAY
 RETRY_DELAY = 300
 logger = logging.getLogger(__name__)
-
-
-async def _finish_before_cancel(operation):
-    """Hold the lock until the side effect finishes, even when cancelled."""
-    task = asyncio.ensure_future(operation)
-    cancelled = False
-    while not task.done():
-        try:
-            await asyncio.shield(task)
-        except asyncio.CancelledError:
-            cancelled = True
-        except Exception:
-            break
-    if cancelled:
-        with suppress(Exception, asyncio.CancelledError):
-            task.result()
-        raise asyncio.CancelledError
-    return task.result()
 
 
 class TokenLifecycle:

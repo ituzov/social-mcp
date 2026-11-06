@@ -68,7 +68,7 @@ allowed_importers = [
 name = "threads: access through the public interface only"
 type = "protected"
 protected_modules = ["social_mcp.threads.*"]
-allowed_importers = ["social_mcp.threads", "social_mcp.threads.**"]
+allowed_importers = ["social_mcp.threads", "social_mcp.threads.**", "social_mcp.migration_models"]
 
 [[tool.importlinter.contracts]]
 name = "accounts: repository above independent ORM models and schemas"
@@ -83,7 +83,8 @@ name = "Module dependencies point downwards only"
 type = "layers"
 layers = [
     "social_mcp.app | social_mcp.migrations",
-    "social_mcp.threads | social_mcp.migration_models",
+    "social_mcp.migration_models",
+    "social_mcp.threads",
     "social_mcp.mcp_server | social_mcp.accounts",
     "social_mcp.updates",
     "social_mcp.database : social_mcp.config",
@@ -96,9 +97,10 @@ layers = [
     "social_mcp.threads.tools",
     "social_mcp.threads.connection",
     "social_mcp.threads.service",
-    "social_mcp.threads.tokens",
+    "social_mcp.threads.publishing",
+    "social_mcp.threads.tokens | social_mcp.threads.publications",
     "social_mcp.threads.client",
-    "social_mcp.threads.transport : social_mcp.threads.schemas : social_mcp.threads.errors : social_mcp.threads.diagnostics",
+    "social_mcp.threads.transport : social_mcp.threads.schemas : social_mcp.threads.errors : social_mcp.threads.diagnostics : social_mcp.threads.async_utils",
 ]
 
 [tool.pytest.ini_options]
@@ -113,6 +115,9 @@ source_modules = [
     "social_mcp.database",
     "social_mcp.threads.connection",
     "social_mcp.threads.service",
+    "social_mcp.threads.publishing",
+    "social_mcp.threads.publications",
+    "social_mcp.threads.async_utils",
     "social_mcp.threads.tokens",
     "social_mcp.threads.transport",
     "social_mcp.threads.client",
@@ -155,3 +160,14 @@ layers = [
     "social_mcp.threads.client.posts | social_mcp.threads.client.replies | social_mcp.threads.client.profile | social_mcp.threads.client.insights | social_mcp.threads.client.auth",
     "social_mcp.threads.client.http | social_mcp.threads.client.fields",
 ]
+
+[[tool.importlinter.contracts]]
+name = "publications: access through the public interface only"
+type = "protected"
+protected_modules = ["social_mcp.threads.publications.*"]
+allowed_importers = ["social_mcp.threads.publications", "social_mcp.threads.publications.**", "social_mcp.migration_models"]
+
+[[tool.importlinter.contracts]]
+name = "publications: repository above ORM model"
+type = "layers"
+layers = ["social_mcp.threads.publications.repository", "social_mcp.threads.publications.models"]

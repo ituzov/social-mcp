@@ -370,8 +370,8 @@ def test_quote_never_publishes_unready_or_already_published_container(
     status = AsyncMock(return_value=ContainerStatus(status=state))
     publish = AsyncMock()
     monkeypatch.setattr("social_mcp.threads.service.create_quote_container", create)
-    monkeypatch.setattr("social_mcp.threads.service.fetch_container_status", status)
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.fetch_container_status", status)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     with pytest.raises(ThreadsError):
         asyncio.run(service.quote_post("123", "456", TEXT))
     publish.assert_not_awaited()

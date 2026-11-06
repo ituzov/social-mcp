@@ -1,6 +1,9 @@
 """Shared HTTP requests, error translation, and safe diagnostic metadata."""
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import AsyncExitStack, asynccontextmanager
+from contextvars import ContextVar
 from typing import Literal
 
 import httpx
@@ -8,6 +11,48 @@ import httpx
 from social_mcp.threads.diagnostics import PublicationStage, record_publication
 from social_mcp.threads.errors import ThreadsError, ThreadsTransientError
 from social_mcp.threads.transport import RedactingTransport
+
+# Lifespan scope propagates to request tasks, without sharing clients across event loops.
+_clients: ContextVar[tuple[httpx.AsyncClient, httpx.AsyncClient] | None] = ContextVar(
+    "threads_http_clients", default=None
+)
+
+
+@asynccontextmanager
+async def client_lifespan() -> AsyncIterator[None]:
+    async with AsyncExitStack() as stack:
+        regular = await stack.enter_async_context(
+            httpx.AsyncClient(timeout=10.0, follow_redirects=False)
+        )
+        redacted = await stack.enter_async_context(
+            httpx.AsyncClient(
+                transport=RedactingTransport(httpx.AsyncHTTPTransport()),
+                timeout=10.0,
+                follow_redirects=False,
+            )
+        )
+        scope = _clients.set((regular, redacted))
+        try:
+            yield
+        finally:
+            _clients.reset(scope)
+
+
+@asynccontextmanager
+async def _client(*, query_secrets: bool = False) -> AsyncIterator[httpx.AsyncClient]:
+    clients = _clients.get()
+    if clients is None:
+        # Standalone client calls own a short scope; the application owns a long one.
+        transport = (
+            RedactingTransport(httpx.AsyncHTTPTransport()) if query_secrets else None
+        )
+        async with httpx.AsyncClient(
+            transport=transport, timeout=10.0, follow_redirects=False
+        ) as client:
+            yield client
+    else:
+        yield clients[1 if query_secrets else 0]
+
 
 AUTH_ERROR = "Threads rejected the token. Check the account connection."
 PERMISSION_ERROR = (
@@ -45,15 +90,21 @@ async def publication_request(
     """Send one publishing request and retain only safe diagnostic metadata."""
     record_publication(stage, "request_started")
     try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+        async with _client() as client:
             url = f"https://graph.threads.com/v1.0/{path}"
             headers = {"Authorization": f"Bearer {access_token}"}
             if method == "GET":
-                response = await client.get(url, headers=headers, params=fields)
+                response = await client.send(
+                    httpx.Request("GET", url, headers=headers, params=fields)
+                )
             elif method == "DELETE":
-                response = await client.delete(url, headers=headers)
+                response = await client.send(
+                    httpx.Request("DELETE", url, headers=headers)
+                )
             else:
-                response = await client.post(url, headers=headers, data=fields)
+                response = await client.send(
+                    httpx.Request("POST", url, headers=headers, data=fields)
+                )
     except asyncio.CancelledError:
         record_publication(stage, "cancelled")
         raise
@@ -153,11 +204,14 @@ async def read_request(
     permission_message: str = PERMISSION_ERROR,
 ) -> object:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                f"https://graph.threads.com/v1.0/{path}",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params=params,
+        async with _client() as client:
+            response = await client.send(
+                httpx.Request(
+                    "GET",
+                    f"https://graph.threads.com/v1.0/{path}",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    params=params,
+                )
             )
     except httpx.TimeoutException:
         raise ThreadsTransientError(
@@ -180,15 +234,10 @@ async def read_request(
 
 
 async def token_request(path: str, params: dict[str, str]) -> object:
-    transport = RedactingTransport(httpx.AsyncHTTPTransport())
     try:
-        async with httpx.AsyncClient(
-            transport=transport,
-            timeout=10.0,
-            follow_redirects=False,
-        ) as client:
-            response = await client.get(
-                f"https://graph.threads.com/{path}", params=params
+        async with _client(query_secrets=True) as client:
+            response = await client.send(
+                httpx.Request("GET", f"https://graph.threads.com/{path}", params=params)
             )
     except httpx.TimeoutException:
         raise ThreadsTransientError(

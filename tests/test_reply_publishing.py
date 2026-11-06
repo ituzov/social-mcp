@@ -173,10 +173,10 @@ def test_reply_uses_current_token_and_preserves_parent(reply_server, monkeypatch
     monkeypatch.setattr(service.tokens, "get_account", get)
     monkeypatch.setattr("social_mcp.threads.service.create_text_container", create)
     monkeypatch.setattr(
-        "social_mcp.threads.service.fetch_container_status",
+        "social_mcp.threads.publishing.fetch_container_status",
         AsyncMock(return_value=ContainerStatus(status="FINISHED")),
     )
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     result = asyncio.run(service.reply("123", "789", TEXT))
     assert result.post_id == "222"
     get.assert_awaited_once_with("123")
@@ -199,10 +199,10 @@ def test_reply_never_publishes_an_unready_or_published_container(
         AsyncMock(return_value="111"),
     )
     monkeypatch.setattr(
-        "social_mcp.threads.service.fetch_container_status",
+        "social_mcp.threads.publishing.fetch_container_status",
         AsyncMock(return_value=ContainerStatus(status=state)),
     )
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     with pytest.raises(ThreadsError) as caught:
         asyncio.run(service.reply("123", "789", TEXT))
     if state == "PUBLISHED":
@@ -286,11 +286,11 @@ def test_reply_cancellation_never_retries_publication(reply_server, monkeypatch)
         AsyncMock(return_value="111"),
     )
     monkeypatch.setattr(
-        "social_mcp.threads.service.fetch_container_status",
+        "social_mcp.threads.publishing.fetch_container_status",
         AsyncMock(return_value=ContainerStatus(status="FINISHED")),
     )
     publish = AsyncMock(side_effect=asyncio.CancelledError())
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(service.reply("123", "789", TEXT))
     publish.assert_awaited_once()

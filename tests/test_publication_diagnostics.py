@@ -214,11 +214,11 @@ def test_service_reports_already_published_separately_from_network_and_schema_er
     )
     monkeypatch.setattr("social_mcp.threads.service.asyncio.sleep", AsyncMock())
     monkeypatch.setattr(
-        "social_mcp.threads.service.fetch_container_status",
+        "social_mcp.threads.publishing.fetch_container_status",
         AsyncMock(return_value=ContainerStatus(status=state)),
     )
     publish = AsyncMock(return_value="999")
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     if state == "FINISHED":
         assert asyncio.run(service.reply("123", "789", TEXT)).post_id == "999"
         publish.assert_awaited_once()

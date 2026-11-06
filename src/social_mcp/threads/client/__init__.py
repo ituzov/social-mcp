@@ -2,6 +2,7 @@
 
 from social_mcp.threads.client.auth import inspect_token as inspect_token
 from social_mcp.threads.client.auth import refresh_token as refresh_token
+from social_mcp.threads.client.http import client_lifespan as client_lifespan
 from social_mcp.threads.client.insights import (
     fetch_account_insights as fetch_account_insights,
 )

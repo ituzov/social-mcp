@@ -50,11 +50,17 @@ async def check_package() -> None:
                         "threads_connect",
                         "threads_list_accounts",
                         "threads_get_profile",
+                        "threads_list_publications",
+                        "threads_resume_publication",
                     } <= names
                     accounts = await session.call_tool("threads_list_accounts", {})
                     assert (
                         isinstance(accounts, CallToolResult) and not accounts.is_error
                     )
+                    saved = await session.call_tool(
+                        "threads_list_publications", {"account_id": "123"}
+                    )
+                    assert isinstance(saved, CallToolResult) and not saved.is_error
                     connection = await session.call_tool(
                         "threads_connect", {"action": "start"}
                     )

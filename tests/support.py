@@ -17,7 +17,17 @@ type Connected = tuple[SocialMCPServer, ThreadsService, AsyncMock]
 
 def mock_http(monkeypatch, respond):
     """Replace HTTP with an in-process handler; never contact the real API."""
-    monkeypatch.setattr(
-        "httpx.AsyncClient",
-        lambda **kwargs: ASYNC_CLIENT(transport=httpx.MockTransport(respond), **kwargs),
-    )
+
+    def client(**kwargs):
+        transport = kwargs.pop("transport", None)
+        if transport is not None:
+            # Preserve query redaction while replacing its actual network transport.
+            from social_mcp.threads.transport import RedactingTransport
+
+            assert isinstance(transport, RedactingTransport)
+            transport._transport = httpx.MockTransport(respond)
+        else:
+            transport = httpx.MockTransport(respond)
+        return ASYNC_CLIENT(transport=transport, **kwargs)
+
+    monkeypatch.setattr("httpx.AsyncClient", client)

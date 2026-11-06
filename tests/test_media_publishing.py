@@ -461,9 +461,11 @@ def test_cancellation_propagates_without_retry_or_follow_up_writes(
     elif stage == "publish":
         publish.side_effect = asyncio.CancelledError()
     monkeypatch.setattr("social_mcp.threads.service.create_image_container", create)
-    monkeypatch.setattr("social_mcp.threads.service.create_carousel_container", parent)
-    monkeypatch.setattr("social_mcp.threads.service.fetch_container_status", status)
-    monkeypatch.setattr("social_mcp.threads.service.publish_container", publish)
+    monkeypatch.setattr(
+        "social_mcp.threads.publishing.create_carousel_container", parent
+    )
+    monkeypatch.setattr("social_mcp.threads.publishing.fetch_container_status", status)
+    monkeypatch.setattr("social_mcp.threads.publishing.publish_container", publish)
     with pytest.raises(asyncio.CancelledError):
         if count == 1:
             asyncio.run(service.publish_image("123", SIGNED_URL))

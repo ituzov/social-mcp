@@ -67,6 +67,23 @@ claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+h
 codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
 ```
 
+After registration, add this setting to the existing `[mcp_servers.social-mcp]`
+table in Codex's `config.toml`, then reload its MCP connection:
+
+```toml
+[mcp_servers.social-mcp]
+# Keep the existing command, args, and environment settings.
+tool_timeout_sec = 300
+```
+
+Do not create a second table if it already exists. Codex's default tool timeout
+is 60 seconds; the current carousel flow waits twice for 30 seconds, in addition
+to API requests. A five-minute timeout provides more processing time, but is not
+a guarantee that Meta will finish. This is the tool execution timeout, not
+`startup_timeout_sec`. See the [official MCP configuration options](https://learn.chatgpt.com/docs/extend/mcp#other-configuration-options).
+After a publishing timeout, check the account's posts before trying again;
+a timeout does not prove that publication failed.
+
 For clients accepting an `mcpServers` JSON configuration:
 
 ```json
@@ -179,6 +196,7 @@ permission shown in the dashboard does not prove a request will succeed.
 | Conversations | `threads_list_replies`, `threads_get_conversation` |
 | Moderation | `threads_list_pending_replies`, `threads_moderate_reply` |
 | Publishing | `threads_publish_text`, `threads_publish_long_text`, `threads_publish_image`, `threads_publish_carousel`, `threads_reply` |
+| Publication recovery | `threads_list_publications`, `threads_resume_publication` |
 | Post actions | `threads_quote_post`, `threads_repost`, `threads_delete_post` |
 
 Try asking:
@@ -190,6 +208,29 @@ Try asking:
 Give an explicit instruction and exact content before asking for a publication.
 Tools can perform real writes; client approval settings control their execution.
 
+## Continuing a prepared publication
+
+Publishing checks container readiness up to three times, with a minute between
+checks while Meta reports `IN_PROGRESS`. One preparation attempt has a shared
+180-second budget for child and parent processing, including status requests;
+initial media creation and the final publish request are outside that budget.
+The existing 30-second processing wait remains for newly created containers.
+A carousel can therefore exceed a client's default tool timeout; configure an
+appropriate execution deadline as shown above.
+
+If processing is still pending or a call was interrupted, ask the assistant to
+use `threads_list_publications` for the selected account. A `preparing` record
+can continue through `threads_resume_publication` using the original approved
+content. Existing image containers are reused. No background job publishes later.
+Saving starts once all image container IDs (or the single post container ID)
+are known; interruption before that point may leave unused containers at Meta.
+
+The publication boundary is saved before sending. A `publishing` record means
+the request may have been sent; it cannot be resent automatically, even after
+restart. Inspect posts or replies first. A `published` record returns its
+confirmed post ID without sending again. `failed` records cannot be resumed.
+Records survive process restarts and are serialized across local MCP processes.
+
 ## Storage and limits
 
 - Accounts and tokens are stored in local SQLite, in the OS user data directory
@@ -198,8 +239,15 @@ Tools can perform real writes; client approval settings control their execution.
 - To select a different database, pass `SOCIAL_MCP_DB_PATH` in your MCP client's
   environment configuration. `.env.example` documents the setting. Use an
   absolute path when sharing one database between launch commands.
+- Prepared publication records are also local: account/container IDs, state,
+  timestamps and confirmed post IDs. An unfinished carousel may retain its
+  caption until its parent container is saved or preparation fails. Tokens and
+  source image URLs are not copied into these records. Treat database backups
+  as private. Records remain in this database; removing the database removes them.
 - Bundled Alembic migrations run automatically at startup. Back up the database
   before upgrading the package; never commit it or its token contents.
+  If multiple clients share one database, upgrade all their server versions
+  together when a release adds migrations. Older packages reject unknown revisions.
 - Token expiry is inspected when connecting. Eligible long-lived tokens are
   refreshed on use near expiry. There is no background scheduler; after inactivity
   beyond expiry, reconnect with a valid token.

@@ -36,6 +36,15 @@ ROOT = Path(__file__).resolve().parents[1]
             "threads/client/http.py",
             "from social_mcp.threads.client.profile import fetch_profile",
         ),
+        (
+            "threads/service.py",
+            "from social_mcp.threads.publications.models import PublicationRecord",
+        ),
+        (
+            "threads/publications/repository.py",
+            "from social_mcp.threads.publishing import PublicationManager",
+        ),
+        ("threads/publishing.py", "from mcp.server import MCPServer"),
         ("updates.py", "from mcp.server import MCPServer"),
         ("updates.py", "from social_mcp.accounts import get_account"),
         ("threads/service.py", "from mcp.server import MCPServer"),

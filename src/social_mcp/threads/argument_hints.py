@@ -1,6 +1,14 @@
 """Tool-specific safe argument hints owned by Threads."""
 
 ARGUMENT_HINTS = {
+    "threads_list_publications": {
+        "account_id": "account_id: provide a numeric ID from threads_list_accounts.",
+        "limit": "limit: provide an integer from 1 to 100.",
+    },
+    "threads_resume_publication": {
+        "account_id": "account_id: provide a numeric ID from threads_list_accounts.",
+        "publication_id": "publication_id: use the 32-character ID from threads_list_publications.",
+    },
     "threads_moderate_reply": {
         "account_id": "account_id: provide a numeric ID from threads_list_accounts.",
         "reply_id": "reply_id: provide a numeric ID from threads_list_replies or threads_list_pending_replies.",

@@ -41,6 +41,8 @@ def test_startup_and_tool_discovery(tmp_path):
                     by_name = {tool.name: tool for tool in tools}
                     assert set(by_name) == {
                         "social_mcp_check_update",
+                        "threads_list_publications",
+                        "threads_resume_publication",
                         "threads_connect",
                         "threads_get_profile",
                         "threads_list_accounts",

@@ -5,6 +5,7 @@ import asyncio
 import getpass
 import sys
 import warnings
+from contextlib import asynccontextmanager
 from importlib.metadata import version
 
 from social_mcp.config import Settings
@@ -34,11 +35,17 @@ def main(argv: list[str] | None = None) -> None:
     initialize_database(settings.db_path)
     service = ThreadsService(settings.db_path)
     connection = ThreadsConnection(service)
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with service.lifespan(), connection.lifespan(app):
+            yield
+
     installed_version = version("social-mcp")
     server = SocialMCPServer(
         "social-mcp",
         version=installed_version,
-        lifespan=connection.lifespan,
+        lifespan=lifespan,
         update_checker=UpdateChecker(installed_version, enabled=settings.check_updates),
     )
     register_threads_tools(server, service, connection)
@@ -53,7 +60,13 @@ def _connect_threads(settings: Settings) -> None:
         if not token:
             raise ThreadsError("The Threads access token must not be empty.")
         initialize_database(settings.db_path)
-        profile = asyncio.run(ThreadsService(settings.db_path).connect(token))
+
+        async def connect():
+            service = ThreadsService(settings.db_path)
+            async with service.lifespan():
+                return await service.connect(token)
+
+        profile = asyncio.run(connect())
     except getpass.GetPassWarning:
         print(
             "Run this command in a terminal to enter the token securely.",

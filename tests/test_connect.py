@@ -8,12 +8,12 @@ import pytest
 from social_mcp import app
 from social_mcp.accounts import AccountStorageError, get_account, save_account
 from social_mcp.threads import ThreadsError, ThreadsService
+from tests.support import mock_http
 
 pytestmark = pytest.mark.usefixtures("verified_token")
 
 TOKEN = "synthetic-import-token"
 OLD_TOKEN = "synthetic-previous-token"
-ASYNC_CLIENT = httpx.AsyncClient
 
 
 def mock_profile(monkeypatch, status=200):
@@ -31,10 +31,7 @@ def mock_profile(monkeypatch, status=200):
             ),
         )
 
-    monkeypatch.setattr(
-        "httpx.AsyncClient",
-        lambda **kwargs: ASYNC_CLIENT(transport=httpx.MockTransport(respond), **kwargs),
-    )
+    mock_http(monkeypatch, respond)
     return requests
 
 

@@ -1,20 +1,21 @@
 """Threads use cases: connected accounts, token expiry, and profile identity."""
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from pydantic import ValidationError
 
 from social_mcp.accounts import AccountStorageError, AccountSummary, list_accounts
 from social_mcp.threads.client import (
-    create_carousel_container,
+    client_lifespan,
     create_image_container,
     create_long_text_container,
     create_quote_container,
     create_text_container,
     delete_post,
     fetch_account_insights,
-    fetch_container_status,
     fetch_conversation,
     fetch_pending_replies,
     fetch_post_insights,
@@ -22,12 +23,10 @@ from social_mcp.threads.client import (
     fetch_profile,
     fetch_replies,
     moderate_reply,
-    publication_unknown,
-    publish_container,
     repost_post,
 )
-from social_mcp.threads.diagnostics import record_publication
 from social_mcp.threads.errors import ThreadsError
+from social_mcp.threads.publishing import PublicationManager
 from social_mcp.threads.schemas import (
     AccountInsights,
     AccountInsightsQuery,
@@ -41,6 +40,9 @@ from social_mcp.threads.schemas import (
     PostInsights,
     PostsPage,
     PostsQuery,
+    PublicationListInput,
+    PublicationResumeInput,
+    PublicationSummary,
     PublishedPost,
     QuotePostInput,
     RepliesPage,
@@ -61,6 +63,48 @@ class ThreadsService:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         self.tokens: TokenLifecycle = TokenLifecycle(db_path)
+        self.publications = PublicationManager(db_path)
+
+    @asynccontextmanager
+    async def lifespan(self) -> AsyncIterator[None]:
+        """One scoped HTTP pool per running application, shared by its request tasks."""
+        async with client_lifespan():
+            yield
+
+    async def list_publications(
+        self, account_id: str, *, limit: int = 20
+    ) -> list[PublicationSummary]:
+        try:
+            query = PublicationListInput(account_id=account_id, limit=limit)
+        except ValidationError:
+            raise ThreadsError(
+                "Provide a numeric account_id and a limit from 1 to 100."
+            ) from None
+        return await asyncio.to_thread(
+            self.publications.store.list, account_id, limit=query.limit
+        )
+
+    async def resume_publication(
+        self, account_id: str, publication_id: str
+    ) -> PublishedPost:
+        try:
+            request = PublicationResumeInput(
+                account_id=account_id, publication_id=publication_id
+            )
+        except ValidationError:
+            raise ThreadsError(
+                "Provide a numeric account_id and a 32-character publication_id from threads_list_publications."
+            ) from None
+        # Check ownership before credential maintenance or any network activity.
+        saved = await asyncio.to_thread(
+            self.publications.store.get, request.account_id, request.publication_id
+        )
+        if saved.state != "preparing":
+            return await self.publications.resume("", account_id, publication_id)
+        account = await self.tokens.get_account(account_id)
+        return await self.publications.resume(
+            account.access_token.get_secret_value(), account_id, publication_id
+        )
 
     async def publish_text(
         self,
@@ -264,14 +308,13 @@ class ThreadsService:
                     token, account.account_id, image, is_carousel_item=True
                 )
             )
-        await asyncio.sleep(30)
-        for child_id in children:
-            await self._require_ready_container(token, child_id)
-        container_id = await create_carousel_container(
-            token, account.account_id, children, text=post.text
+        publication_id = await self.publications.prepare(
+            account.account_id,
+            children=children,
+            caption=post.text,
         )
-        return await self._publish_ready_container(
-            token, account.account_id, container_id
+        return await self.publications.resume(
+            token, account.account_id, publication_id, initial=True
         )
 
     async def _publish_validated_text(
@@ -306,37 +349,15 @@ class ThreadsService:
         *,
         reply_to_id: str | None = None,
     ) -> PublishedPost:
-        """Wait for processing, require readiness, and attempt publication once."""
-        # Meta recommends allowing processing time before publishing a container.
-        await asyncio.sleep(30)
-        await self._require_ready_container(
-            token, container_id, reply_to_id=reply_to_id
+        """Persist the created container before waiting or sending it once."""
+        publication_id = await self.publications.prepare(
+            account_id,
+            container_id=container_id,
+            reply_to_id=reply_to_id,
         )
-        post_id = await publish_container(
-            token, account_id, container_id, reply_to_id=reply_to_id
+        return await self.publications.resume(
+            token, account_id, publication_id, initial=True
         )
-        record_publication("publish", "confirmed")
-        return PublishedPost(post_id=post_id)
-
-    @staticmethod
-    async def _require_ready_container(
-        token: str, container_id: str, *, reply_to_id: str | None = None
-    ) -> None:
-        """Fail closed on unknown states and avoid publishing a container twice."""
-        status = await fetch_container_status(token, container_id)
-        if status.status == "PUBLISHED":
-            record_publication(
-                "status", "already_published", payload={"status": status.status}
-            )
-            raise ThreadsError(
-                publication_unknown(container_id, reply_to_id=reply_to_id)
-            )
-        if status.status != "FINISHED":
-            record_publication("status", "not_ready", payload={"status": status.status})
-            raise ThreadsError(
-                f"Container {container_id} is not ready or could not be processed. "
-                "No publication was attempted."
-            )
 
     async def connect(self, access_token: str) -> ThreadsProfile:
         """Verify the token through /me before saving its owner in SQLite."""
