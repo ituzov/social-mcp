@@ -37,14 +37,14 @@ See [uv's tool guide](https://docs.astral.sh/uv/guides/tools/).
 
 Repository: [ituzov/social-mcp](https://github.com/ituzov/social-mcp).
 
-The commands below install release `v0.1.1`. Use the same release tag consistently
+The commands below install release `v0.1.2`. Use the same release tag consistently
 in every command. Published tags remain unchanged; fixes use a new tag, such as
-`v0.1.2`.
+`v0.1.3`.
 
 The server's launch command is:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp
 ```
 
 The first launch downloads and prepares dependencies; allow it to finish. Later
@@ -58,13 +58,13 @@ connection timing and reconnect behavior depend on the client.
 **Claude Code** ([MCP documentation](https://code.claude.com/docs/en/mcp)):
 
 ```bash
-claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
+claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp
 ```
 
 **Codex** ([MCP documentation](https://learn.chatgpt.com/docs/extend/mcp)):
 
 ```bash
-codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
+codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp
 ```
 
 After registration, add this setting to the existing `[mcp_servers.social-mcp]`
@@ -91,7 +91,7 @@ For clients accepting an `mcpServers` JSON configuration:
   "mcpServers": {
     "social-mcp": {
       "command": "uvx",
-      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.1", "social-mcp"]
+      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.2", "social-mcp"]
     }
   }
 }
@@ -110,7 +110,7 @@ Ask the assistant to check the connection after submitting the form.
 An alternative for a real terminal is hidden token input:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp connect threads
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp connect threads
 ```
 
 No `.env` file is required for the default setup. Keep tokens out of chat and MCP

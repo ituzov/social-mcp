@@ -37,14 +37,14 @@
 
 Репозиторий: [ituzov/social-mcp](https://github.com/ituzov/social-mcp).
 
-Команды ниже устанавливают релиз `v0.1.1`. Во всех командах используй один тег
+Команды ниже устанавливают релиз `v0.1.2`. Во всех командах используй один тег
 релиза. Выпущенные теги не перемещаем: исправления публикуем под новым тегом,
-например `v0.1.2`.
+например `v0.1.3`.
 
 Команда запуска сервера:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp
 ```
 
 Первый запуск скачивает и подготавливает зависимости, поэтому ему нужно дать
@@ -58,13 +58,13 @@ uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1"
 **Claude Code** ([документация MCP](https://code.claude.com/docs/en/mcp)):
 
 ```bash
-claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
+claude mcp add --transport stdio social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp
 ```
 
 **Codex** ([документация MCP](https://learn.chatgpt.com/docs/extend/mcp)):
 
 ```bash
-codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp
+codex mcp add social-mcp -- uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp
 ```
 
 После регистрации добавь настройку в существующую таблицу
@@ -91,7 +91,7 @@ tool_timeout_sec = 300
   "mcpServers": {
     "social-mcp": {
       "command": "uvx",
-      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.1", "social-mcp"]
+      "args": ["--python", "3.15.2", "--from", "git+https://github.com/ituzov/social-mcp.git@v0.1.2", "social-mcp"]
     }
   }
 }
@@ -110,7 +110,7 @@ tool_timeout_sec = 300
 Ещё можно ввести токен скрыто в обычном терминале:
 
 ```bash
-uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.1" social-mcp connect threads
+uvx --python 3.15.2 --from "git+https://github.com/ituzov/social-mcp.git@v0.1.2" social-mcp connect threads
 ```
 
 Для стандартного запуска `.env` не нужен. Не вставляй токен в чат или настройки MCP.

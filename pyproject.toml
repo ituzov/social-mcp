@@ -1,6 +1,6 @@
 [project]
 name = "social-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "Local MCP server for Threads accounts, posts, insights, and publishing"
 readme = "README.md"
 license = "MIT"
